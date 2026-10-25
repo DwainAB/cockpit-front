@@ -16,7 +16,7 @@ export const apiUrl = (path: string) => `${BASE_URL}${path}`;
 export const assetUrl = (url: string) => (/^https?:/.test(BASE_URL) && url.startsWith('/api/') ? new URL(url, BASE_URL).href : url);
 
 /** Client HTTP minimal : JSON (ou FormData pour les fichiers) en entrée, JSON en sortie, erreurs converties en `ApiError`. */
-export async function request<T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
+export async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(apiUrl(path), {

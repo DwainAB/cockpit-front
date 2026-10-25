@@ -17,6 +17,7 @@ import type {
   ProductionStage,
   ProjectStatus,
   RestaurantStatus,
+  SiteStatus,
   StepStatus,
   StripeStatus,
   TaskPriority,
@@ -32,7 +33,7 @@ export interface StatusMeta {
   tone: Tone;
 }
 
-type MetaMap<K extends string> = Record<K, StatusMeta>;
+export type MetaMap<K extends string> = Record<K, StatusMeta>;
 
 export const restaurantStatus: MetaMap<RestaurantStatus> = {
   prospect: { label: 'Prospect', tone: 'neutral' },
@@ -57,6 +58,14 @@ export const stepStatus: MetaMap<StepStatus> = {
   blocked: { label: 'Bloqué', tone: 'danger' },
   done: { label: 'Terminé', tone: 'success' },
   skipped: { label: 'Non requis', tone: 'muted' },
+};
+
+/** État du site (base Yumco) ; « Livré » pour les sites antérieurs au suivi des statuts. */
+export const siteStatus: MetaMap<SiteStatus> = {
+  design: { label: 'Design en cours', tone: 'info' },
+  development: { label: 'Développement en cours', tone: 'warning' },
+  online: { label: 'En ligne', tone: 'success' },
+  delivered: { label: 'Livré', tone: 'success' },
 };
 
 export const stripeStatus: MetaMap<StripeStatus> = {

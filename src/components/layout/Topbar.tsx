@@ -4,6 +4,7 @@ import { IconBuildingStore, IconChevronDown, IconMessagePlus, IconUsersGroup, Ic
 import { useNavigate } from 'react-router-dom';
 import { paths } from '@/core';
 import { api } from '@/api';
+import { useConnection } from '@/api/connection';
 import { useStore } from '@/store';
 import { useUi } from '@/store/ui';
 import { notifyInfo } from '@/lib/notify';
@@ -14,6 +15,8 @@ export function Topbar({ mobileOpened, toggleMobile }: { mobileOpened: boolean; 
   const openModal = useUi((s) => s.openModal);
   const profile = useStore((s) => s.settings.profile);
   const navigate = useNavigate();
+  // Avec le backend, les données sont en base : pas de réinitialisation.
+  const mock = useConnection((s) => s.mode === 'mock');
 
   return (
     <Group h="100%" px={{ base: 'sm', sm: 'lg' }} justify="space-between" wrap="nowrap" gap="sm">
@@ -97,15 +100,17 @@ export function Topbar({ mobileOpened, toggleMobile }: { mobileOpened: boolean; 
             <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => navigate('/settings')}>
               Paramètres
             </Menu.Item>
-            <Menu.Item
-              leftSection={<IconRefresh size={16} />}
-              onClick={async () => {
-                await api.demo.reset();
-                notifyInfo('Démo réinitialisée', 'Les données fictives ont été restaurées.');
-              }}
-            >
-              Réinitialiser les données de démo
-            </Menu.Item>
+            {mock && (
+              <Menu.Item
+                leftSection={<IconRefresh size={16} />}
+                onClick={async () => {
+                  await api.demo.reset();
+                  notifyInfo('Démo réinitialisée', 'Les données fictives ont été restaurées.');
+                }}
+              >
+                Réinitialiser les données de démo
+              </Menu.Item>
+            )}
             <Menu.Divider />
             <Menu.Item leftSection={<IconLogout size={16} />} color="red" onClick={() => notifyInfo('Déconnexion simulée', 'Aucune authentification n’est connectée.')}>
               Se déconnecter

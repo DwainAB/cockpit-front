@@ -11,3 +11,4 @@ export * from './NetworkIcon';
 export * from './DataTable';
 export * from './KanbanBoard';
 export * from './DeliverablePreview';
+export * from './ConfirmModal';
