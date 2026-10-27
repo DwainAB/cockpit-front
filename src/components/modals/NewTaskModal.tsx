@@ -3,7 +3,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useEffect, useState } from 'react';
 import { api } from '@/api';
-import { dayjs, RESTAURANT_PROJECT, type TaskPriority, taskPriority } from '@/core';
+import { dayjs, RESTAURANT_PROJECT, specialtyLabel, type TaskPriority, taskPriority } from '@/core';
 import { notifySuccess } from '@/lib/notify';
 import { useStore } from '@/store';
 import type { ModalContext } from '@/store/ui';
@@ -70,7 +70,7 @@ export function NewTaskModal({ opened, onClose, ctx }: { opened: boolean; onClos
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
             <Select label="Projet" data={projects.map((p) => ({ value: p.id, label: p.name }))} allowDeselect={false} {...form.getInputProps('projectId')} />
             <Select label="Restaurant (optionnel)" disabled={form.values.projectId !== RESTAURANT_PROJECT} clearable data={restaurants.map((r) => ({ value: r.id, label: r.name }))} {...form.getInputProps('restaurantId')} />
-            <Select label="Agent responsable" data={agents.map((a) => ({ value: a.id, label: `${a.name} — ${a.role}` }))} allowDeselect={false} {...form.getInputProps('agentId')} />
+            <Select label="Agent responsable" data={agents.map((a) => ({ value: a.id, label: `${a.name} — ${specialtyLabel(a.kind)}` }))} allowDeselect={false} {...form.getInputProps('agentId')} />
             <Select
               label="Priorité"
               data={Object.entries(taskPriority).map(([value, m]) => ({ value, label: m.label }))}

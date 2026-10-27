@@ -11,13 +11,15 @@ import { useThreads } from './threads';
 const ALL = 'all';
 const TRANSVERSE = 'transverse';
 
-export function ThreadList({ activeId }: { activeId?: string }) {
+/** `projectId` : liste limitée à ce projet (page Discussions du projet). */
+export function ThreadList({ activeId, projectId }: { activeId?: string; projectId?: string }) {
   const threads = useThreads();
   const agents = useAgentsMap();
   const projects = useProjectsMap();
   const openModal = useUi((s) => s.openModal);
   const [kind, setKind] = useState<'all' | 'conversation' | 'meeting'>('all');
-  const [scope, setScope] = useState<string>(ALL);
+  const [chosenScope, setScope] = useState<string>(ALL);
+  const scope = projectId ?? chosenScope;
 
   const filtered = useMemo(
     () =>
@@ -54,6 +56,7 @@ export function ThreadList({ activeId }: { activeId?: string }) {
             { value: 'meeting', label: 'Réunions' },
           ]}
         />
+        {!projectId && (
         <Select
           size="xs"
           allowDeselect={false}
@@ -61,6 +64,7 @@ export function ThreadList({ activeId }: { activeId?: string }) {
           onChange={(v) => setScope(v ?? ALL)}
           data={[{ value: ALL, label: 'Tous les projets' }, ...Object.values(projects).map((p) => ({ value: p.id, label: p.name })), { value: TRANSVERSE, label: 'Réunions transverses' }]}
         />
+        )}
       </Stack>
       <ScrollArea style={{ flex: 1 }}>
         <Stack gap={2} px="xs" pb="xs">
@@ -68,7 +72,7 @@ export function ThreadList({ activeId }: { activeId?: string }) {
             const active = t.id === activeId;
             const project = t.projectId ? projects[t.projectId] : null;
             return (
-              <UnstyledButton key={t.id} component={Link} to={paths.discussions(t.id)} p="sm" style={{ borderRadius: 10, background: active ? 'var(--mantine-color-night-0)' : undefined }}>
+              <UnstyledButton key={t.id} component={Link} to={paths.discussions(t.id, projectId)} p="sm" style={{ borderRadius: 10, background: active ? 'var(--mantine-color-night-0)' : undefined }}>
                 <Group gap="sm" wrap="nowrap" align="flex-start">
                   {t.kind === 'conversation' ? (
                     <AgentAvatar agent={agents[t.agentIds[0]]} size={36} withStatus />

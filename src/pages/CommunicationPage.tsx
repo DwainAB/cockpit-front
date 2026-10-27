@@ -1,10 +1,12 @@
-import { ActionIcon, Badge, Box, Button, Card, Chip, Grid, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
-import { IconBulb, IconCalendarEvent, IconChevronLeft, IconChevronRight, IconPlus, IconSearch, IconSparkles, IconUsersGroup, IconVideo } from '@tabler/icons-react';
+import { ActionIcon, Box, Button, Card, Chip, Grid, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconBulb, IconChevronLeft, IconChevronRight, IconPlus, IconSearch, IconVideo } from '@tabler/icons-react';
 import type { Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { EmptyState, NetworkIcon, PageHeader, PageSkeleton, SectionCard, StatusBadge } from '@/components/ui';
-import { capitalize, type Content, contentStatus, type ContentStatus, dayjs, fmtDate, fmtDateTime, formatLabel, type Network, networkLabel, nextMonday, originLabel, paths, today } from '@/core';
+import { EditorialPlanCard } from '@/components/domain/EditorialPlanCard';
+import { PostIdeasCard } from '@/components/domain/PostIdeasCard';
+import { EmptyState, NetworkIcon, PageHeader, PageSkeleton, StatusBadge } from '@/components/ui';
+import { capitalize, type Content, contentStatus, type ContentStatus, dayjs, fmtDate, formatLabel, type Network, networkLabel, originLabel, paths, today } from '@/core';
 import { useProject } from '@/hooks/useProject';
 import { useSimulatedLoading } from '@/lib/useSimulatedLoading';
 import { useStore } from '@/store';
@@ -20,36 +22,11 @@ const statusBorder: Partial<Record<ContentStatus, string>> = {
   scheduled: 'var(--mantine-color-blue-5)',
 };
 
-interface Piste {
-  id: string;
-  title: string;
-  reason: string;
-  meeting?: boolean;
-}
-
-/** Pistes proposées par l'agent communication, par projet (données de démonstration). */
-const initialPistes: Record<string, Piste[]> = {
-  yumco: [
-    { id: 'y1', title: 'Série « Un producteur, un restaurant »', reason: 'Issue de la réunion éditoriale', meeting: true },
-    { id: 'y2', title: 'Avant / après du menu digital de Sakura Ramen', reason: 'Sujet peu abordé : la vente à emporter' },
-    { id: 'y3', title: 'Les 5 questions à se poser avant de créer son site', reason: 'Tendance observée sur LinkedIn' },
-  ],
-  argos: [
-    { id: 'a1', title: 'Les coulisses du projet en 3 photos', reason: 'Format qui humanise un lancement' },
-    { id: 'a2', title: 'Questions fréquentes sur Argos AI', reason: 'Sujet peu abordé' },
-  ],
-  diagnoskin: [
-    { id: 'd1', title: 'Mythe ou réalité ? (format vidéo court)', reason: 'Tendance observée sur TikTok' },
-    { id: 'd2', title: 'Présentation de l’équipe', reason: 'Sujet peu abordé' },
-  ],
-};
-
 export default function CommunicationPage() {
   const loading = useSimulatedLoading();
   const project = useProject()!;
   const allContents = useStore((s) => s.contents);
   const contents = useMemo(() => allContents.filter((c) => c.projectId === project.id), [allContents, project.id]);
-  const meetings = useStore((s) => s.meetings);
   const openModal = useUi((s) => s.openModal);
   const navigate = useNavigate();
   const [view, setView] = useState<View>('week');
@@ -58,9 +35,6 @@ export default function CommunicationPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [format, setFormat] = useState<string | null>(null);
   const [q, setQ] = useState('');
-  const [dismissed, setDismissed] = useState<string[]>([]);
-  const pistes = (initialPistes[project.id] ?? []).filter((p) => !dismissed.includes(p.id));
-  const dismiss = (id: string) => setDismissed((d) => [...d, id]);
 
   const filtered = useMemo(
     () =>
@@ -76,11 +50,6 @@ export default function CommunicationPage() {
 
   if (loading) return <PageSkeleton cards={3} />;
 
-  const monday = dayjs(nextMonday(12));
-  const mondayProposal = contents.filter((c) => dayjs(c.scheduledAt).isSame(monday, 'day'));
-  const nextEdito = meetings
-    .filter((m) => (m.projectId === project.id || m.projectId === null) && m.status !== 'done')
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
 
   const unit = view === 'month' ? 'month' : 'week';
   const start = view === 'month' ? anchor.startOf('month').startOf('isoWeek') : anchor.startOf('isoWeek');
@@ -97,7 +66,7 @@ export default function CommunicationPage() {
     <>
       <PageHeader
         title={`Communication — ${project.name}`}
-        description="Pilotage éditorial des réseaux sociaux : chaque publication est validée avant programmation."
+        description="Chaque semaine, l’agent propose les posts en discussion avec vous, les crée, puis les publie une fois validés."
         actions={
           <Button leftSection={<IconBulb size={16} />} onClick={() => openModal('idea', { projectId: project.id })}>
             Nouvelle idée
@@ -242,87 +211,10 @@ export default function CommunicationPage() {
         </Grid.Col>
 
         <Grid.Col span={12}>
-          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-            <SectionCard title={`Proposition du lundi ${monday.format('D MMM')}`} subtitle="Préparée automatiquement par l’agent" icon={<IconSparkles size={18} />}>
-              {mondayProposal.length ? (
-                <Stack gap="sm">
-                  {mondayProposal.map((c) => (
-                    <UnstyledButton key={c.id} component={Link} to={paths.content(c.projectId, c.id)} p="sm" style={{ border: '1px solid var(--app-border)', borderRadius: 10 }}>
-                      <Text size="sm" fw={600}>
-                        {c.title}
-                      </Text>
-                      <Group gap={6} mt={6}>
-                        <StatusBadge meta={contentStatus[c.status]} size="xs" />
-                        {c.origin.type === 'meeting' && (
-                          <Badge size="xs" variant="light" color="grape" tt="none" leftSection={<IconUsersGroup size={10} />}>
-                            Décidé en réunion
-                          </Badge>
-                        )}
-                      </Group>
-                    </UnstyledButton>
-                  ))}
-                </Stack>
-              ) : (
-                <EmptyState compact title="Pas encore de proposition" />
-              )}
-            </SectionCard>
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <EditorialPlanCard project={project} />
 
-            <SectionCard title="Prochaine réunion" icon={<IconCalendarEvent size={18} />}>
-              {nextEdito ? (
-                <Stack gap={6}>
-                  <Text size="sm" fw={500}>
-                    {nextEdito.title}
-                  </Text>
-                  <Text size="sm" fw={600}>
-                    {fmtDateTime(nextEdito.date)}
-                  </Text>
-                  {nextEdito.agenda.map((a) => (
-                    <Text key={a} size="xs" c="dimmed">
-                      • {a}
-                    </Text>
-                  ))}
-                  <Button size="xs" variant="light" mt={6} component={Link} to={paths.discussions(nextEdito.id)}>
-                    Ouvrir la réunion
-                  </Button>
-                </Stack>
-              ) : (
-                <EmptyState compact title="Aucune réunion planifiée" action={<Button size="xs" variant="light" onClick={() => openModal('meeting', { projectId: project.id })}>Planifier</Button>} />
-              )}
-            </SectionCard>
-
-            <SectionCard title="Pistes proposées par l’agent" icon={<IconBulb size={18} />}>
-              {pistes.length ? (
-                <Stack gap="sm">
-                  {pistes.map((p) => (
-                    <Box key={p.id} p="sm" style={{ background: 'var(--app-surface-2)', borderRadius: 10 }}>
-                      <Text size="sm" fw={500}>
-                        {p.title}
-                      </Text>
-                      <Text size="xs" c={p.meeting ? 'grape.7' : 'dimmed'}>
-                        {p.reason}
-                      </Text>
-                      <Group gap={6} mt={6}>
-                        <Button
-                          size="compact-xs"
-                          variant="light"
-                          onClick={() => {
-                            openModal('idea', { projectId: project.id, title: p.title });
-                            dismiss(p.id);
-                          }}
-                        >
-                          Retenir
-                        </Button>
-                        <Button size="compact-xs" variant="subtle" color="gray" onClick={() => dismiss(p.id)}>
-                          Écarter
-                        </Button>
-                      </Group>
-                    </Box>
-                  ))}
-                </Stack>
-              ) : (
-                <EmptyState compact title="Toutes les pistes ont été traitées" description="L’agent en proposera de nouvelles lundi." />
-              )}
-            </SectionCard>
+            <PostIdeasCard project={project} />
           </SimpleGrid>
         </Grid.Col>
       </Grid>

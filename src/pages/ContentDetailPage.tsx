@@ -1,4 +1,5 @@
-import { Alert, Anchor, Badge, Box, Button, Card, Grid, Group, Loader, SimpleGrid, Stack, Stepper, Tabs, Text, Textarea, Timeline } from '@mantine/core';
+import { Alert, Anchor, Badge, Box, Button, Card, Checkbox, Grid, Group, Image, Loader, Modal, SimpleGrid, Stack, Stepper, Tabs, Text, Textarea, TextInput, Timeline } from '@mantine/core';
+import { DateTimePicker } from '@mantine/dates';
 import {
   IconAlertTriangle,
   IconArrowsShuffle,
@@ -6,7 +7,11 @@ import {
   IconCalendarCheck,
   IconCheck,
   IconCircleCheck,
+  IconDownload,
   IconEdit,
+  IconExternalLink,
+  IconPencil,
+  IconTrash,
   IconPhoto,
   IconPlayerPlay,
   IconRefresh,
@@ -15,10 +20,11 @@ import {
   IconVideo,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/api';
+import { assetUrl } from '@/api/http';
 import { AgentChip, NetworkIcon, PageHeader, PageSkeleton, SectionCard, StatusBadge } from '@/components/ui';
-import { type ContentAction, contentStatus, type ContentStatus, dayjs, fmtDateTime, formatLabel, networkLabel, originLabel, paths } from '@/core';
+import { type Content, type ContentAction, contentStatus, type ContentStatus, dayjs, fmtDateTime, formatLabel, type Network, networkLabel, originLabel, paths, POST_NETWORKS } from '@/core';
 import { notifyError, notifyInfo, notifySuccess } from '@/lib/notify';
 import { useProject } from '@/hooks/useProject';
 import { useSimulatedLoading } from '@/lib/useSimulatedLoading';
@@ -29,12 +35,16 @@ const stepIndex: Record<ContentStatus, number> = {
   idea: 0,
   topic_review: 0,
   preparing: 1,
-  visual_review: 1,
-  approved: 2,
-  scheduled: 2,
-  error: 2,
-  published: 4,
+  visual_review: 2,
+  approved: 3,
+  scheduled: 3,
+  publishing: 3,
+  error: 3,
+  published: 5,
 };
+
+/** Statuts où les textes et la date se retouchent encore. */
+const editable: ContentStatus[] = ['idea', 'visual_review', 'scheduled', 'error'];
 
 const ratioToAspect = (r: string) => {
   const [w, h] = r.split(':').map(Number);
@@ -64,8 +74,7 @@ export default function ContentDetailPage() {
     fn(...ok);
   };
 
-  const imageNetworks = c.networks.filter((n) => n !== 'tiktok');
-  const firstTab = c.networks[0];
+  const agentName = useStore.getState().agents.find((a) => a.id === c.agentId)?.name ?? 'L’agent';
 
   return (
     <>
@@ -82,7 +91,8 @@ export default function ContentDetailPage() {
           </Group>
         }
         title={c.title}
-        description={`Publication souhaitée le ${fmtDateTime(c.scheduledAt)}`}
+        description={`Publication ${c.status === 'published' ? 'effectuée' : 'prévue'} le ${fmtDateTime(c.scheduledAt)}`}
+        actions={<PostActions c={c} />}
       />
 
       <Grid gutter="md">
@@ -109,7 +119,28 @@ export default function ContentDetailPage() {
               </Box>
             </Card>
 
-            {c.masterVisual && (
+            {c.image && (
+              <SectionCard title="Image du post" subtitle="Créée par l’agent, utilisée sur chaque réseau" icon={<IconPhoto size={18} />}>
+                <Group align="flex-start" gap="lg" wrap="wrap">
+                  <Image src={assetUrl(c.image.url)} alt={c.imageAlt ?? c.title} w={280} radius="md" style={{ aspectRatio: '4 / 5', objectFit: 'cover' }} />
+                  <Stack gap={6} style={{ flex: 1, minWidth: 200 }}>
+                    {c.imageAlt && (
+                      <Text size="sm" c="dimmed">
+                        {c.imageAlt}
+                      </Text>
+                    )}
+                    <Text size="xs" c="dimmed">
+                      Format portrait 4:5, accepté par Instagram, Facebook, LinkedIn et TikTok.
+                    </Text>
+                    <Button component="a" href={assetUrl(c.image.url)} download size="xs" variant="default" leftSection={<IconDownload size={14} />} w="fit-content">
+                      Télécharger l’image
+                    </Button>
+                  </Stack>
+                </Group>
+              </SectionCard>
+            )}
+
+            {!c.image && c.masterVisual && (
               <SectionCard title="Visuel maître et déclinaisons" subtitle="Une image maître, adaptée pour Instagram, LinkedIn et Facebook" icon={<IconPhoto size={18} />}>
                 <Grid gutter="md" align="stretch">
                   <Grid.Col span={{ base: 12, sm: 5 }}>
@@ -177,37 +208,15 @@ export default function ContentDetailPage() {
               </SectionCard>
             )}
 
-            {!c.masterVisual && !c.video && (
+            {!c.image && !c.masterVisual && !c.video && (
               <Card>
                 <Text size="sm" c="dimmed">
-                  Aucun visuel pour l’instant : il sera généré (simulation) après validation du sujet.
+                  Aucune image pour l’instant : l’agent la créera avec les textes du post.
                 </Text>
               </Card>
             )}
 
-            <SectionCard title="Textes proposés par réseau" icon={<IconEdit size={18} />}>
-              {firstTab ? (
-                <Tabs defaultValue={firstTab} variant="pills">
-                  <Tabs.List mb="md">
-                    {c.networks.map((n) => (
-                      <Tabs.Tab key={n} value={n} leftSection={<NetworkIcon network={n} size={18} />}>
-                        {networkLabel[n]}
-                      </Tabs.Tab>
-                    ))}
-                  </Tabs.List>
-                  {c.networks.map((n) => (
-                    <Tabs.Panel key={n} value={n}>
-                      <Box p="md" style={{ background: 'var(--app-surface-2)', borderRadius: 10, whiteSpace: 'pre-line' }}>
-                        <Text size="sm">{c.captions[n] ?? 'Texte en attente de génération (après validation du sujet).'}</Text>
-                      </Box>
-                      <Text size="xs" c="dimmed" mt={6}>
-                        {n === 'tiktok' ? 'Accompagne la vidéo TikTok.' : `Accompagne l’adaptation ${networkLabel[n]} du visuel maître.`}
-                      </Text>
-                    </Tabs.Panel>
-                  ))}
-                </Tabs>
-              ) : null}
-            </SectionCard>
+            <CaptionsCard c={c} />
           </Stack>
         </Grid.Col>
 
@@ -218,21 +227,31 @@ export default function ContentDetailPage() {
                 Validation
               </Text>
               <Stepper active={stepIndex[c.status]} orientation="vertical" size="sm" color={c.status === 'error' ? 'red' : 'sage'}>
-                <Stepper.Step label="Sujet" description={c.status === 'idea' ? 'À soumettre' : c.status === 'topic_review' ? 'En attente de votre validation' : 'Validé'} />
-                <Stepper.Step label="Visuel" description={c.status === 'preparing' ? 'L’agent prépare le visuel…' : c.status === 'visual_review' ? 'En attente de votre validation' : stepIndex[c.status] > 1 ? 'Validé' : 'À venir'} />
-                <Stepper.Step label="Programmation" description={c.status === 'scheduled' ? `Programmé pour le ${fmtDateTime(c.scheduledAt)}` : c.status === 'error' ? 'Échec de publication' : 'À venir'} />
-                <Stepper.Step label="Publication" description={c.status === 'published' ? 'Publié (simulation)' : 'À venir'} />
+                <Stepper.Step label="Idée" description={c.status === 'idea' ? 'À confier à l’agent' : 'Transmise'} />
+                <Stepper.Step label="Création" description={c.status === 'preparing' ? `${agentName} crée le post…` : stepIndex[c.status] > 1 ? 'Textes et image prêts' : 'À venir'} />
+                <Stepper.Step label="Validation" description={c.status === 'visual_review' ? 'En attente de votre validation' : stepIndex[c.status] > 2 ? 'Validé' : 'À venir'} />
+                <Stepper.Step
+                  label="Programmation"
+                  description={c.status === 'scheduled' ? `Le ${fmtDateTime(c.scheduledAt)}` : c.status === 'publishing' ? 'Publication en cours…' : c.status === 'error' ? 'Échec de publication' : 'À venir'}
+                />
+                <Stepper.Step label="Publication" description={c.status === 'published' ? 'Publié' : 'À venir'} />
               </Stepper>
 
               <Stack gap="sm" mt="lg">
+                {c.generationError && (
+                  <Alert color="red" variant="light" icon={<IconAlertTriangle size={18} />} title="Création du post échouée">
+                    {c.generationError}
+                  </Alert>
+                )}
+                {editable.includes(c.status) && c.status !== 'error' && <ScheduleField c={c} />}
                 {c.status === 'idea' && (
-                  <Button leftSection={<IconSend size={16} />} loading={busy === 'submit_topic'} onClick={() => act('submit_topic', ['Sujet soumis à validation'])}>
-                    Soumettre le sujet à validation
+                  <Button leftSection={<IconSend size={16} />} loading={busy === 'submit_topic'} onClick={() => act('submit_topic', ['Demande envoyée', `${agentName} crée les textes et l’image.`])}>
+                    {c.generationError ? 'Relancer la création' : `Demander à ${agentName} de créer le post`}
                   </Button>
                 )}
                 {c.status === 'topic_review' && (
                   <>
-                    <Button color="sage" leftSection={<IconCheck size={16} />} loading={busy === 'validate_topic'} onClick={() => act('validate_topic', ['Sujet validé', 'L’agent prépare le visuel (simulation).'])}>
+                    <Button color="sage" leftSection={<IconCheck size={16} />} loading={busy === 'validate_topic'} onClick={() => act('validate_topic', ['Sujet validé', `${agentName} crée le post.`])}>
                       Valider le sujet
                     </Button>
                     <Button variant="light" leftSection={<IconArrowsShuffle size={16} />} loading={busy === 'another_idea'} onClick={() => act('another_idea', ['Nouvelle idée proposée'], notifyInfo)}>
@@ -243,15 +262,25 @@ export default function ContentDetailPage() {
                 {c.status === 'preparing' && (
                   <Group gap="sm" p="sm" style={{ background: 'var(--app-surface-2)', borderRadius: 8 }}>
                     <Loader size="xs" />
-                    <Text size="sm">L’agent communication prépare le visuel…</Text>
+                    <Text size="sm">{agentName} crée les textes et l’image… (environ une minute)</Text>
                   </Group>
                 )}
                 {c.status === 'visual_review' && (
                   <>
-                    {changeMode && <Textarea autosize minRows={2} label="Modification attendue" placeholder="Ex. : photo plus lumineuse, titre plus court" value={comment} onChange={(e) => setComment(e.currentTarget.value)} />}
+                    {changeMode && (
+                      <Textarea
+                        autosize
+                        minRows={2}
+                        label="Modification attendue"
+                        description="L’agent corrige le post et retient votre remarque pour les suivants."
+                        placeholder="Ex. : image plus lumineuse, texte plus court, moins d’emojis"
+                        value={comment}
+                        onChange={(e) => setComment(e.currentTarget.value)}
+                      />
+                    )}
                     {changeMode ? (
                       <Group grow>
-                        <Button color="orange" loading={busy === 'request_changes'} onClick={() => act('request_changes', ['Modification demandée', 'Une nouvelle version arrive (simulation).'])}>
+                        <Button color="orange" loading={busy === 'request_changes'} onClick={() => act('request_changes', ['Modification demandée', `${agentName} corrige le post.`])}>
                           Envoyer
                         </Button>
                         <Button variant="default" onClick={() => setChangeMode(false)}>
@@ -260,8 +289,8 @@ export default function ContentDetailPage() {
                       </Group>
                     ) : (
                       <>
-                        <Button color="sage" leftSection={<IconCheck size={16} />} loading={busy === 'validate_visual'} onClick={() => act('validate_visual', ['Visuel validé', 'Programmé pour demain à 09:00.'])}>
-                          Valider le visuel
+                        <Button color="sage" leftSection={<IconCheck size={16} />} loading={busy === 'validate_visual'} onClick={() => act('validate_visual', ['Post validé', `Publication prévue le ${fmtDateTime(c.scheduledAt)}.`])}>
+                          Valider et programmer
                         </Button>
                         <Button variant="light" color="orange" leftSection={<IconEdit size={16} />} onClick={() => setChangeMode(true)}>
                           Demander une modification
@@ -270,7 +299,7 @@ export default function ContentDetailPage() {
                     )}
                     {c.generations >= maxGen && (
                       <Text size="xs" c="orange.8">
-                        Limite de {maxGen} générations atteinte : une nouvelle demande dépassera le budget prévu (simulation).
+                        {c.generations} créations pour ce post : au-delà de {maxGen}, chaque nouvelle image reste facturée.
                       </Text>
                     )}
                   </>
@@ -278,28 +307,35 @@ export default function ContentDetailPage() {
                 {c.status === 'scheduled' && (
                   <>
                     <Alert color="blue" variant="light" icon={<IconCalendarCheck size={18} />}>
-                      {dayjs(c.scheduledAt).isSame(dayjs().add(1, 'day'), 'day') ? 'Programmé pour demain' : 'Programmé'} à {dayjs(c.scheduledAt).format('HH:mm')}.
+                      Publication automatique le {dayjs(c.scheduledAt).format('dddd D MMMM à HH:mm')}.
                     </Alert>
-                    <Button variant="subtle" color="red" size="xs" loading={busy === 'simulate_error'} onClick={() => act('simulate_error', ['Erreur simulée', 'La publication a échoué.'], notifyError)}>
-                      Simuler une erreur de publication
+                    <Button variant="light" leftSection={<IconSend size={16} />} loading={busy === 'publish_now'} onClick={() => act('publish_now', ['Publication lancée'], notifyInfo)}>
+                      Publier maintenant
                     </Button>
                   </>
+                )}
+                {c.status === 'publishing' && (
+                  <Group gap="sm" p="sm" style={{ background: 'var(--app-surface-2)', borderRadius: 8 }}>
+                    <Loader size="xs" />
+                    <Text size="sm">Publication en cours…</Text>
+                  </Group>
                 )}
                 {c.status === 'error' && (
                   <>
                     <Alert color="red" variant="light" icon={<IconAlertTriangle size={18} />} title="Échec de publication">
                       {c.errorMessage}
                     </Alert>
-                    <Button color="red" leftSection={<IconRefresh size={16} />} loading={busy === 'retry'} onClick={() => act('retry', ['Nouvelle tentative lancée', 'Résultat dans quelques secondes (simulation).'], notifyInfo)}>
-                      Nouvelle tentative
+                    <Button color="red" leftSection={<IconRefresh size={16} />} loading={busy === 'retry'} onClick={() => act('retry', ['Nouvelle tentative lancée'], notifyInfo)}>
+                      Réessayer (réseaux en échec seulement)
                     </Button>
                   </>
                 )}
                 {c.status === 'published' && (
                   <Alert color="sage" variant="light" icon={<IconCircleCheck size={18} />}>
-                    Publié (simulation). Aucune publication réelle n’a été effectuée.
+                    Publié sur {c.networks.map((n) => networkLabel[n]).join(', ')}.
                   </Alert>
                 )}
+                {c.publications && <PublicationList c={c} />}
               </Stack>
             </Card>
 
@@ -310,10 +346,10 @@ export default function ContentDetailPage() {
                 <Row label="Agent">
                   <AgentChip agentId={c.agentId} size="xs" />
                 </Row>
-                <Row label="Générations">
+                <Row label="Créations">
                   {c.generations} / {maxGen}
                 </Row>
-                <Row label="Réseaux">{imageNetworks.length ? `${imageNetworks.length} image` : ''}{imageNetworks.length && c.networks.includes('tiktok') ? ' + ' : ''}{c.networks.includes('tiktok') ? 'TikTok vidéo' : ''}</Row>
+                <Row label="Réseaux">{c.networks.map((n) => networkLabel[n]).join(', ')}</Row>
               </Stack>
             </SectionCard>
 
@@ -368,5 +404,212 @@ function MockVisual({ palette, title, aspect, big }: { palette: string[]; title:
         {title}
       </Text>
     </Box>
+  );
+}
+
+/** Textes par réseau, modifiables tant que le post n'est pas publié. */
+function CaptionsCard({ c }: { c: Content }) {
+  const [drafts, setDrafts] = useState<Partial<Record<Network, string>>>({});
+  const [saving, setSaving] = useState(false);
+  const canEdit = editable.includes(c.status);
+  const dirty = c.networks.some((n) => drafts[n] !== undefined && drafts[n] !== (c.captions[n] ?? ''));
+  const first = c.networks[0];
+  if (!first) return null;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.contents.update(c.id, { captions: drafts });
+      setDrafts({});
+      notifySuccess('Textes enregistrés');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Textes par réseau"
+      subtitle={canEdit ? 'Vous pouvez les retoucher avant publication.' : undefined}
+      icon={<IconEdit size={18} />}
+      action={
+        dirty ? (
+          <Button size="xs" loading={saving} onClick={() => void save()}>
+            Enregistrer les textes
+          </Button>
+        ) : undefined
+      }
+    >
+      <Tabs defaultValue={first} variant="pills">
+        <Tabs.List mb="md">
+          {c.networks.map((n) => (
+            <Tabs.Tab key={n} value={n} leftSection={<NetworkIcon network={n} size={18} />}>
+              {networkLabel[n]}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        {c.networks.map((n) => (
+          <Tabs.Panel key={n} value={n}>
+            {canEdit && c.captions[n] !== undefined ? (
+              <Textarea autosize minRows={6} value={drafts[n] ?? c.captions[n] ?? ''} onChange={(e) => setDrafts((d) => ({ ...d, [n]: e.currentTarget.value }))} />
+            ) : (
+              <Box p="md" style={{ background: 'var(--app-surface-2)', borderRadius: 10, whiteSpace: 'pre-line' }}>
+                <Text size="sm">{c.captions[n] ?? 'Texte en attente : l’agent l’écrira en créant le post.'}</Text>
+              </Box>
+            )}
+            <Text size="xs" c="dimmed" mt={6}>
+              {(drafts[n] ?? c.captions[n] ?? '').length} caractères
+            </Text>
+          </Tabs.Panel>
+        ))}
+      </Tabs>
+    </SectionCard>
+  );
+}
+
+/** Date et heure de publication, modifiables jusqu'à la publication. */
+function ScheduleField({ c }: { c: Content }) {
+  const change = async (value: Date | null) => {
+    if (!value) return;
+    await api.contents.update(c.id, { scheduledAt: value.toISOString() });
+    notifySuccess('Date de publication modifiée', dayjs(value).format('dddd D MMMM à HH:mm'));
+  };
+  return (
+    <DateTimePicker
+      label="Date de publication"
+      valueFormat="dddd D MMMM YYYY · HH:mm"
+      value={new Date(c.scheduledAt)}
+      minDate={new Date()}
+      onChange={(v) => void change(v)}
+    />
+  );
+}
+
+/** Résultat de la publication, réseau par réseau. */
+function PublicationList({ c }: { c: Content }) {
+  return (
+    <Stack gap={6}>
+      {c.networks.map((n) => {
+        const r = c.publications?.[n];
+        if (!r) return null;
+        return (
+          <Group key={n} gap="xs" wrap="nowrap" align="flex-start">
+            <NetworkIcon network={n} size={18} />
+            <Text size="xs" c={r.status === 'published' ? 'sage.8' : 'red.7'} style={{ flex: 1 }}>
+              {r.status === 'published' ? `Publié le ${fmtDateTime(r.at)}` : r.error}
+            </Text>
+            {r.url && (
+              <Anchor href={r.url} target="_blank" rel="noreferrer" size="xs">
+                <IconExternalLink size={14} />
+              </Anchor>
+            )}
+          </Group>
+        );
+      })}
+    </Stack>
+  );
+}
+
+/** Modifier le sujet, les réseaux et la date, ou supprimer le post. */
+function PostActions({ c }: { c: Content }) {
+  const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState(c.title);
+  const [objective, setObjective] = useState(c.objective);
+  const [networks, setNetworks] = useState<string[]>(c.networks);
+  const [date, setDate] = useState<Date | null>(new Date(c.scheduledAt));
+  const canEdit = editable.includes(c.status);
+  const canDelete = c.status !== 'publishing' && c.status !== 'preparing';
+
+  const openEdit = () => {
+    setTitle(c.title);
+    setObjective(c.objective);
+    setNetworks(c.networks);
+    setDate(new Date(c.scheduledAt));
+    setEditing(true);
+  };
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api.contents.update(c.id, { title, objective, networks: networks as Network[], scheduledAt: date?.toISOString() });
+      notifySuccess('Post modifié');
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await api.contents.remove(c.id);
+      notifySuccess('Post supprimé', c.title);
+      navigate(paths.communication(c.projectId));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Group gap="xs">
+        {canEdit && (
+          <Button variant="default" leftSection={<IconPencil size={16} />} onClick={openEdit}>
+            Modifier
+          </Button>
+        )}
+        {canDelete && (
+          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => setDeleting(true)}>
+            Supprimer
+          </Button>
+        )}
+      </Group>
+
+      <Modal opened={editing} onClose={() => setEditing(false)} title={<Text fw={650}>Modifier le post</Text>}>
+        <Stack>
+          <TextInput label="Sujet" value={title} onChange={(e) => setTitle(e.currentTarget.value)} withAsterisk />
+          <Textarea label="Objectif" autosize minRows={2} value={objective} onChange={(e) => setObjective(e.currentTarget.value)} />
+          <Checkbox.Group label="Réseaux" value={networks} onChange={setNetworks}>
+            <Group mt={6}>
+              {POST_NETWORKS.map((n) => (
+                <Checkbox key={n} value={n} label={networkLabel[n]} />
+              ))}
+            </Group>
+          </Checkbox.Group>
+          <DateTimePicker label="Date de publication" valueFormat="dddd D MMMM YYYY · HH:mm" value={date} onChange={setDate} />
+          {c.status !== 'idea' && (
+            <Text size="xs" c="dimmed">
+              Les textes déjà écrits ne changent pas. Pour les refaire après un changement de sujet, utilisez « Demander une modification ».
+            </Text>
+          )}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setEditing(false)}>
+              Annuler
+            </Button>
+            <Button loading={busy} disabled={!title.trim() || !networks.length || !date} onClick={() => void save()}>
+              Enregistrer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={deleting} onClose={() => setDeleting(false)} title={<Text fw={650}>Supprimer ce post ?</Text>}>
+        <Stack>
+          <Text size="sm">
+            « {c.title} » sera retiré du calendrier{c.status === 'scheduled' ? ' et ne sera pas publié' : ''}.
+            {c.status === 'published' ? ' Il reste en ligne sur les réseaux : seule sa trace dans le cockpit est supprimée.' : ''}
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setDeleting(false)}>
+              Annuler
+            </Button>
+            <Button color="red" loading={busy} onClick={() => void remove()}>
+              Supprimer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
   );
 }

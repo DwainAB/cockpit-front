@@ -3,7 +3,7 @@ import { DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dayjs, paths } from '@/core';
+import { dayjs, paths, specialtyLabel } from '@/core';
 import { api } from '@/api';
 import { AgentAvatar } from '@/components/ui';
 import { notifySuccess } from '@/lib/notify';
@@ -66,19 +66,22 @@ export function NewMeetingModal({ opened, onClose, ctx }: { opened: boolean; onC
       .finally(() => setSaving(false));
     notifySuccess(v.when === 'now' ? 'Réunion démarrée' : 'Réunion planifiée', meeting.title);
     onClose();
-    navigate(paths.discussions(meeting.id));
+    navigate(paths.discussions(meeting.id, meeting.projectId));
   });
 
   return (
     <Modal opened={opened} onClose={onClose} title={<Text fw={650}>Nouvelle réunion</Text>} size="lg">
       <form onSubmit={submit}>
         <Stack>
-          <Select
-            label="Portée"
-            allowDeselect={false}
-            data={[{ value: ALL, label: 'Tous les projets' }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
-            {...form.getInputProps('scope')}
-          />
+          {/* Ouverte depuis un projet : la réunion le concerne, sans choix à faire. */}
+          {!ctx.projectId && (
+            <Select
+              label="Portée"
+              allowDeselect={false}
+              data={[{ value: ALL, label: 'Tous les projets' }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
+              {...form.getInputProps('scope')}
+            />
+          )}
           <div>
             <Text size="sm" fw={500} mb={6}>
               Agents participants
@@ -101,7 +104,7 @@ export function NewMeetingModal({ opened, onClose, ctx }: { opened: boolean; onC
                           {a.name}
                         </Text>
                         <Text size="xs" c="dimmed" truncate>
-                          {a.role}
+                          {specialtyLabel(a.kind)}
                         </Text>
                       </div>
                     </Group>

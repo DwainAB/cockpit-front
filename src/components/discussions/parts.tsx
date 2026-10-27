@@ -1,7 +1,7 @@
 import { ActionIcon, Badge, Box, Button, Group, Menu, Text, Textarea } from '@mantine/core';
 import { IconArrowLeft, IconFile, IconLayoutSidebarRight, IconLink, IconPaperclip, IconPhoto, IconSend, IconX } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
-import type { Agent, ChatMessage } from '@/core';
+import { specialtyLabel, type Agent, type ChatMessage } from '@/core';
 import { AgentAvatar } from '@/components/ui';
 
 export const attachmentIcon = { file: IconFile, image: IconPhoto, link: IconLink };
@@ -67,7 +67,7 @@ export function Bubble({ from, agent, text, time, attachment, showAuthor }: { fr
       >
         {!mine && showAuthor && agent && (
           <Text size="xs" fw={650} mb={2} style={{ color: agent.color }}>
-            {agent.name} · <Text span size="xs" c="dimmed" fw={400}>{agent.role}</Text>
+            {agent.name} · <Text span size="xs" c="dimmed" fw={400}>{specialtyLabel(agent.kind)}</Text>
           </Text>
         )}
         <Text size="sm" style={{ whiteSpace: 'pre-line' }}>

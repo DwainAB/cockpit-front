@@ -15,7 +15,8 @@ import { useUi } from '@/store/ui';
  * liste à gauche, fil au centre, contexte (agent) ou compte rendu (réunion) à droite.
  */
 export default function DiscussionsPage() {
-  const { threadId } = useParams();
+  // Dans un projet : seulement ses discussions et réunions. Hors projet : toutes, réunions transverses comprises.
+  const { threadId, projectId } = useParams();
   const navigate = useNavigate();
   const conversation = useStore((s) => s.conversations.find((c) => c.id === threadId));
   const meeting = useStore((s) => s.meetings.find((m) => m.id === threadId));
@@ -25,7 +26,7 @@ export default function DiscussionsPage() {
   const [detailsOpened, { open: openDetails, close: closeDetails }] = useDisclosure(false);
 
   const hasThread = !!(conversation || meeting);
-  const onBack = showList ? undefined : () => navigate(paths.discussions());
+  const onBack = showList ? undefined : () => navigate(paths.discussions(undefined, projectId));
   const panelTitle = meeting ? 'Compte rendu' : 'Contexte et mémoire';
   const panel = meeting ? <MeetingPanel meeting={meeting} /> : conversation ? <ConversationContext conv={conversation} /> : null;
 
@@ -33,7 +34,7 @@ export default function DiscussionsPage() {
     <Card padding={0} style={{ height: 'calc(100dvh - 60px - 56px)', minHeight: 520, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
       {(showList || !threadId) && (
         <Box w={showList ? 300 : '100%'} style={{ borderRight: showList ? '1px solid var(--app-border)' : undefined, flexShrink: 0 }}>
-          <ThreadList activeId={threadId} />
+          <ThreadList activeId={threadId} projectId={projectId} />
         </Box>
       )}
 
@@ -49,10 +50,10 @@ export default function DiscussionsPage() {
                 description="Écrivez à un agent en tête-à-tête, ou réunissez plusieurs agents sur un projet ou sur tous les projets."
                 action={
                   <Group gap="sm" justify="center">
-                    <Button variant="default" leftSection={<IconMessagePlus size={16} />} onClick={() => openModal('conversation')}>
+                    <Button variant="default" leftSection={<IconMessagePlus size={16} />} onClick={() => openModal('conversation', { projectId })}>
                       Nouvelle discussion
                     </Button>
-                    <Button leftSection={<IconUsersGroup size={16} />} onClick={() => openModal('meeting')}>
+                    <Button leftSection={<IconUsersGroup size={16} />} onClick={() => openModal('meeting', { projectId })}>
                       Nouvelle réunion
                     </Button>
                   </Group>

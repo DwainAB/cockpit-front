@@ -1,8 +1,9 @@
 import { Badge, Box, Button, Card, Group, NumberInput, SimpleGrid, Slider, Stack, Switch, Tabs, Text, TextInput } from '@mantine/core';
-import { IconBell, IconBolt, IconBrandFacebook, IconBrandInstagram, IconBrandLinkedin, IconBrandTiktok, IconPlugConnectedX, IconUser, IconWallet } from '@tabler/icons-react';
+import { IconBell, IconBolt, IconBrandFacebook, IconBrandInstagram, IconBrandLinkedin, IconBrandTiktok, IconPlugConnectedX, IconRobot, IconUser, IconWallet } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Settings } from '@/core';
+import { SiteAgentsFields } from '@/components/domain/SiteAgentsFields';
 import { PageHeader } from '@/components/ui';
 import { notifyInfo, notifySuccess } from '@/lib/notify';
 import { api } from '@/api';
@@ -31,6 +32,7 @@ export default function SettingsPage() {
       <Tabs value={tab} onChange={(v) => setParams(v && v !== 'profile' ? { tab: v } : {})} variant="outline" radius="md">
         <Tabs.List mb="lg" style={{ flexWrap: 'wrap' }}>
           <Tabs.Tab value="profile" leftSection={<IconUser size={15} />}>Profil</Tabs.Tab>
+          <Tabs.Tab value="agents" leftSection={<IconRobot size={15} />}>Agents IA</Tabs.Tab>
           <Tabs.Tab value="notifications" leftSection={<IconBell size={15} />}>Notifications</Tabs.Tab>
           <Tabs.Tab value="socials" leftSection={<IconBrandInstagram size={15} />}>Réseaux sociaux</Tabs.Tab>
           <Tabs.Tab value="automations" leftSection={<IconBolt size={15} />}>Automatisations</Tabs.Tab>
@@ -56,6 +58,18 @@ export default function SettingsPage() {
                   Enregistrer
                 </Button>
               </Group>
+            </Stack>
+          </Card>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="agents">
+          <Card maw={720}>
+            <Stack gap="lg">
+              <Text size="sm" c="dimmed">
+                Flux de création de site : chaque tâche est réalisée par l’agent choisi, avec son modèle « Tâches » (réglable sur la page Agents). Le changement s’applique aux
+                prochaines générations. Également modifiable depuis la page Production des sites.
+              </Text>
+              <SiteAgentsFields />
             </Stack>
           </Card>
         </Tabs.Panel>
@@ -170,3 +184,4 @@ export default function SettingsPage() {
     </>
   );
 }
+

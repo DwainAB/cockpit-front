@@ -2,7 +2,7 @@ import { Spotlight, type SpotlightActionData, type SpotlightActionGroupData } fr
 import { IconBuildingStore, IconChecklist, IconFolder, IconMessages, IconRobot, IconSpeakerphone, IconSearch } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { paths } from '@/core';
+import { paths, specialtyLabel } from '@/core';
 import { useStore } from '@/store';
 import { useUi } from '@/store/ui';
 import { projectNav } from './nav';
@@ -26,7 +26,7 @@ export function GlobalSearch() {
         ...meetings.map((m) => ({ id: m.id, label: m.title, description: `Réunion · ${projectName(m.projectId)}`, leftSection: <IconMessages size={18} />, onClick: () => navigate(paths.discussions(m.id)) })),
       ]),
       group('Tâches', tasks.map((t) => ({ id: t.id, label: t.title, description: projectName(t.projectId), leftSection: <IconChecklist size={18} />, onClick: () => { navigate(paths.tasks()); openTask(t.id); } }))),
-      group('Agents', agents.map((a) => ({ id: a.id, label: `${a.name} — ${a.role}`, leftSection: <IconRobot size={18} />, onClick: () => navigate(paths.agents(a.id)) }))),
+      group('Agents', agents.map((a) => ({ id: a.id, label: `${a.name} — ${specialtyLabel(a.kind)}`, leftSection: <IconRobot size={18} />, onClick: () => navigate(paths.agents(a.id)) }))),
     ];
   }, [projects, restaurants, tasks, contents, meetings, conversations, agents, navigate, openTask]);
 

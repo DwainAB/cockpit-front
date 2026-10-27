@@ -24,13 +24,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { buildStatus, currentBuild, fromNow, paths, REPO_NAME_RE, repoNameOf, fmtDateTime, usd, type SiteBuild, type SiteDraft } from '@/core';
 import { api } from '@/api';
-import { SectionCard, StatusBadge } from '@/components/ui';
+import { AgentAvatar, SectionCard, StatusBadge } from '@/components/ui';
+import { useStore } from '@/store';
+import { useAgent } from '@/store/selectors';
 import { notifySuccess } from '@/lib/notify';
 
 const stepOf: Record<SiteBuild['status'], number> = { queued: 0, building: 0, testing: 1, ready: 2, failed: 1, validated: 3 };
 
-/** Site développé par l'agent développeur : aperçu, tests, validation ou demande de modification. */
+/** Site développé par l'agent chargé du développement (Paramètres → Agents IA) : aperçu, tests, validation ou modification. */
 export function BuildPanel({ draft }: { draft: SiteDraft }) {
+  const developer = useAgent(useStore((s) => s.settings.siteAgents?.development));
+  const devName = developer?.name ?? 'L’agent développeur';
   const latest = currentBuild(draft)!;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -102,12 +106,13 @@ export function BuildPanel({ draft }: { draft: SiteDraft }) {
             </Box>
           ) : (
             <Stack align="center" justify="center" mih={520} gap="sm" p="xl" ta="center">
+              {developer && <AgentAvatar agent={developer} size={40} />}
               <Loader />
               <Text fw={600}>
                 {selected.status === 'queued'
-                  ? 'En attente de l’agent développeur…'
+                  ? `En attente de ${devName}…`
                   : selected.status === 'building'
-                    ? 'L’agent développeur code le site en Next.js…'
+                    ? `${devName} code le site en Next.js…`
                     : 'Compilation et tests automatiques…'}
               </Text>
               <Text size="sm" c="dimmed">
@@ -166,7 +171,7 @@ export function BuildPanel({ draft }: { draft: SiteDraft }) {
           )}
 
           {selected.notes.length > 0 && (
-            <Alert variant="light" color="yellow" icon={<IconAlertTriangle size={18} />} title="Remarques de l’agent développeur">
+            <Alert variant="light" color="yellow" icon={<IconAlertTriangle size={18} />} title={`Remarques de ${devName}`}>
               <Stack gap={4}>
                 {selected.notes.map((n) => (
                   <Text key={n} size="sm">

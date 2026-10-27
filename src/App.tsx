@@ -43,6 +43,8 @@ export default function App() {
           <Route path="p/:projectId" element={<ProjectGuard />}>
             <Route index element={<ProjectHomePage />} />
             <Route path="finance" element={<FinancePage />} />
+            <Route path="discussions" element={<DiscussionsPage />} />
+            <Route path="discussions/:threadId" element={<DiscussionsPage />} />
             <Route element={<ProjectGuard module="restaurants" />}>
               <Route path="restaurants" element={<RestaurantsPage />} />
               <Route path="restaurants/:restaurantId" element={<RestaurantDetailPage />} />

@@ -1,11 +1,18 @@
 import { Avatar, Group, Indicator, Text, Tooltip, type AvatarProps } from '@mantine/core';
-import { IconChartPie, IconCode, IconHierarchy2, IconPalette, IconSpeakerphone, IconUser } from '@tabler/icons-react';
-import type { Agent, AgentKind } from '@/core';
+import { IconBriefcase, IconBrush, IconChartBar, IconChartDots, IconChartPie, IconCode, IconHeadset, IconHierarchy2, IconPalette, IconSeo, IconSpeakerphone, IconUser, IconWriting } from '@tabler/icons-react';
+import { specialtyLabel, type Agent, type AgentKind } from '@/core';
 import { useAgent } from '@/store/selectors';
 
 export const agentIcon: Record<AgentKind, typeof IconCode> = {
   developer: IconCode,
   webdesign: IconPalette,
+  commercial: IconBriefcase,
+  marketing: IconChartBar,
+  seo: IconSeo,
+  copywriter: IconWriting,
+  graphist: IconBrush,
+  support: IconHeadset,
+  analyst: IconChartDots,
   communication: IconSpeakerphone,
   finance: IconChartPie,
   coordinator: IconHierarchy2,
@@ -52,7 +59,7 @@ export function AgentChip({ agentId, showRole, size = 'sm' }: { agentId: string;
     );
   if (!agent) return null;
   return (
-    <Tooltip label={agent.role}>
+    <Tooltip label={specialtyLabel(agent.kind)}>
       <Group gap={6} wrap="nowrap">
         <AgentAvatar agent={agent} size={size === 'xs' ? 20 : 24} />
         <div style={{ lineHeight: 1.15 }}>
@@ -61,7 +68,7 @@ export function AgentChip({ agentId, showRole, size = 'sm' }: { agentId: string;
           </Text>
           {showRole && (
             <Text size="xs" c="dimmed">
-              {agent.role}
+              {specialtyLabel(agent.kind)}
             </Text>
           )}
         </div>
@@ -84,7 +91,7 @@ export function AgentStack({ agentIds, max = 4 }: { agentIds: string[]; max?: nu
 function AgentStackItem({ id }: { id: string }) {
   const agent = useAgent(id);
   return (
-    <Tooltip label={agent ? `${agent.name} · ${agent.role}` : id}>
+    <Tooltip label={agent ? `${agent.name} · ${specialtyLabel(agent.kind)}` : id}>
       <AgentAvatar agent={agent} size={28} style={{ border: '2px solid white' }} />
     </Tooltip>
   );

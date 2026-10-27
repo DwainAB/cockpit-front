@@ -97,6 +97,7 @@ export const contentStatus: MetaMap<ContentStatus> = {
   visual_review: { label: 'Visuel à valider', tone: 'accent' },
   approved: { label: 'Approuvé', tone: 'info' },
   scheduled: { label: 'Programmé', tone: 'info' },
+  publishing: { label: 'Publication en cours', tone: 'info' },
   published: { label: 'Publié', tone: 'success' },
   error: { label: 'Erreur', tone: 'danger' },
 };
@@ -136,6 +137,7 @@ export const formatLabel: Record<ContentFormat, string> = {
 
 export const originLabel: Record<ContentOriginType, string> = {
   meeting: 'Idée de réunion',
+  discussion: 'Décidé en discussion',
   underexplored: 'Sujet peu abordé',
   trend: 'Tendance observée',
   manual: 'Idée manuelle',

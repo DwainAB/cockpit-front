@@ -3,8 +3,9 @@ import { IconAlertTriangle, IconChevronDown, IconClock, IconForms, IconMail, Ico
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { currentBuild, draftStage, fromNow, paths, productionStages, type SiteBuild, type SiteDraft } from '@/core';
+import { SiteAgentsFields } from '@/components/domain/SiteAgentsFields';
 import { SendQuestionnaireModal } from '@/components/modals/SendQuestionnaireModal';
-import { AgentChip, EmptyState, KanbanBoard, PageHeader } from '@/components/ui';
+import { AgentChip, KanbanBoard, PageHeader } from '@/components/ui';
 import { useStore } from '@/store';
 
 type Filter = 'all' | 'review' | 'failed';
@@ -60,49 +61,41 @@ export default function SiteProductionPage() {
           </Menu>
         }
       />
-      {drafts.length ? (
-        <>
-          <Group mb="md" gap="sm" wrap="wrap">
-            <TextInput
-              placeholder="Rechercher un restaurant"
-              leftSection={<IconSearch size={16} />}
-              value={q}
-              onChange={(e) => setQ(e.currentTarget.value)}
-              w={{ base: '100%', sm: 260 }}
-            />
-            <SegmentedControl
-              value={filter}
-              onChange={(v) => setFilter(v as Filter)}
-              data={[
-                { value: 'all', label: `Tous (${drafts.length})` },
-                { value: 'review', label: `À valider (${toReview})` },
-                { value: 'failed', label: `En échec (${failed})` },
-              ]}
-            />
-          </Group>
-          <KanbanBoard
-            columns={productionStages}
-            items={items}
-            getColumn={draftStage}
-            getKey={(d) => d.id}
-            highlightColumns={['mockup_review', 'site_review']}
-            renderCard={(d) => <DraftCard d={d} />}
-          />
-        </>
-      ) : (
-        <Card>
-          <EmptyState
-            icon={<IconForms size={24} />}
-            title="Aucun site en production"
-            description="Remplissez un formulaire : il apparaîtra dans « En attente », puis l’agent webdesign préparera la maquette."
-            action={
-              <Button component={Link} to={paths.newDraft()} leftSection={<IconForms size={16} />}>
-                Remplir le formulaire
-              </Button>
-            }
-          />
-        </Card>
-      )}
+      <Card mb="md" padding="sm">
+        <Text size="sm" fw={600} mb={4}>
+          Agents du flux
+        </Text>
+        <Text size="xs" c="dimmed" mb="xs">
+          Qui réalise les maquettes et le développement. Le changement s’applique aux prochaines générations.
+        </Text>
+        <SiteAgentsFields compact />
+      </Card>
+      <Group mb="md" gap="sm" wrap="wrap">
+        <TextInput
+          placeholder="Rechercher un restaurant"
+          leftSection={<IconSearch size={16} />}
+          value={q}
+          onChange={(e) => setQ(e.currentTarget.value)}
+          w={{ base: '100%', sm: 260 }}
+        />
+        <SegmentedControl
+          value={filter}
+          onChange={(v) => setFilter(v as Filter)}
+          data={[
+            { value: 'all', label: `Tous (${drafts.length})` },
+            { value: 'review', label: `À valider (${toReview})` },
+            { value: 'failed', label: `En échec (${failed})` },
+          ]}
+        />
+      </Group>
+      <KanbanBoard
+        columns={productionStages}
+        items={items}
+        getColumn={draftStage}
+        getKey={(d) => d.id}
+        highlightColumns={['mockup_review', 'site_review']}
+        renderCard={(d) => <DraftCard d={d} />}
+      />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { Button, Group, Modal, Select, Stack, Text } from '@mantine/core';
 import { useEffect, useState } from 'react';
 import { useOpenConversation } from '@/hooks/useOpenConversation';
+import { specialtyLabel } from '@/core';
 import { useStore } from '@/store';
 import type { ModalContext } from '@/store/ui';
 
@@ -28,15 +29,18 @@ export function NewConversationModal({ opened, onClose, ctx }: { opened: boolean
         <Select
           label="Agent"
           placeholder="Choisir un agent"
-          data={agents.map((a) => ({ value: a.id, label: `${a.name} — ${a.role}` }))}
+          data={agents.filter((a) => !ctx.projectId || a.projectIds.includes(ctx.projectId)).map((a) => ({ value: a.id, label: `${a.name} — ${specialtyLabel(a.kind)}` }))}
           value={agentId}
           onChange={(v) => {
             setAgentId(v);
             const next = agents.find((a) => a.id === v);
-            if (next && projectId && !next.projectIds.includes(projectId)) setProjectId(null);
+            if (next && projectId && !next.projectIds.includes(projectId) && !ctx.projectId) setProjectId(null);
           }}
         />
-        <Select label="Projet" placeholder="Choisir un projet" data={projectOptions.map((p) => ({ value: p.id, label: p.name }))} value={projectId} onChange={setProjectId} />
+        {/* Ouverte depuis un projet : la discussion le concerne, sans choix à faire. */}
+        {!ctx.projectId && (
+          <Select label="Projet" placeholder="Choisir un projet" data={projectOptions.map((p) => ({ value: p.id, label: p.name }))} value={projectId} onChange={setProjectId} />
+        )}
         <Text size="xs" c="dimmed">
           Si une discussion existe déjà avec cet agent sur ce projet, elle est simplement rouverte.
         </Text>

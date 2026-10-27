@@ -8,6 +8,7 @@
  * Les composants n'appellent jamais `fetch` ni le store directement pour écrire.
  */
 import {
+  addAgentMemory,
   addIdea,
   addMeeting,
   addMeetingItem,
@@ -22,8 +23,10 @@ import {
   completeBuild,
   completeDesign,
   createDraft,
+  deleteAgentMemory,
   deleteDraft,
   createTasksFromMeeting,
+  listAgentMemories,
   markAllNotificationsRead,
   markNotificationRead,
   platformUrl,
@@ -47,6 +50,18 @@ import {
   toggleAutomation,
   toggleProjectSetting,
   updateAgent,
+  updateAgentMemory,
+  updateContent,
+  deleteContent,
+  updateEditorialPlan,
+  openEditorialConversation,
+  pushAgentReply,
+  placeholderIdeas,
+  confirmEditorialIdeas,
+  addPostIdeas,
+  placeholderPostIdeas,
+  setPostIdeaStatus,
+  validatePostIdea,
   updateDelivery,
   updateSettings,
   validateBuild,
@@ -55,12 +70,18 @@ import {
   workflowAction,
   type Agent,
   type AgentInput,
+  type AgentMemoryEntry,
+  type AgentMemoryInput,
   type ChatMessage,
   type Invitation,
   type SubscriptionPlan,
   type Content,
   type Conversation,
   type ContentAction,
+  type ContentUpdate,
+  type EditorialIdea,
+  type EditorialPlan,
+  type PostIdea,
   type DomainContext,
   type Meeting,
   type MeetingStatus,
@@ -263,6 +284,8 @@ export const api = {
   contents: {
     createIdea: (input: NewIdeaInput) => call(post<Content>('/contents', input), (ctx) => addIdea(ctx, input)),
     act: (id: string, action: ContentAction, comment?: string) => call(post<Content>(`/contents/${id}/actions`, { action, comment }), (ctx) => contentAction(ctx, id, action, comment)),
+    remove: (id: string) => call(() => request<{ deleted: boolean; projectId: string }>('DELETE', `/contents/${id}`), (ctx) => deleteContent(ctx, id)),
+    update: (id: string, patchBody: ContentUpdate) => call(patch<Content>(`/contents/${id}`, patchBody), (ctx) => updateContent(ctx, id, patchBody)),
   },
   meetings: {
     create: (input: NewMeetingInput) => call(post<Meeting>('/meetings', input), (ctx) => addMeeting(ctx, input)),
@@ -281,8 +304,25 @@ export const api = {
   projects: {
     addNote: (id: string, text: string) => call(post(`/projects/${id}/notes`, { text }), (ctx) => addProjectNote(ctx, id, text)),
     toggleSetting: (id: string, key: 'weeklyMeeting' | 'requireValidation') => call(post(`/projects/${id}/settings/toggle`, { key }), (ctx) => toggleProjectSetting(ctx, id, key)),
+    updateEditorial: (id: string, patchBody: Partial<EditorialPlan>) => call(patch<EditorialPlan>(`/projects/${id}/editorial`, patchBody), (ctx) => updateEditorialPlan(ctx, id, patchBody)),
+    suggestIdeas: (id: string) => call(post<PostIdea[]>(`/projects/${id}/ideas/suggest`), ({ db }) => addPostIdeas(db, id, placeholderPostIdeas())),
+    setIdeaStatus: (id: string, ideaId: string, status: 'proposed' | 'kept' | 'dismissed') =>
+      call(post<PostIdea>(`/projects/${id}/ideas/${ideaId}/status`, { status }), (ctx) => setPostIdeaStatus(ctx, id, ideaId, status)),
+    validateIdea: (id: string, ideaId: string, scheduledAt: string) =>
+      call(post<Content>(`/projects/${id}/ideas/${ideaId}/validate`, { scheduledAt }), (ctx) => validatePostIdea(ctx, id, ideaId, scheduledAt)),
+    /** L'agent ouvre tout de suite la discussion de la semaine. */
+    startBrief: (id: string) =>
+      call(post<Conversation>(`/projects/${id}/editorial/brief`), ({ db }) => {
+        const conv = openEditorialConversation(db, id);
+        pushAgentReply(db, conv.id, 'Voici mes idées pour cette semaine (réponse simulée en mode démo). Qu’en penses-tu ?');
+        return conv;
+      }),
   },
   conversations: {
+    /** Idées retenues dans une discussion éditoriale, à relire avant confirmation. */
+    extractIdeas: (id: string) =>
+      call(post<EditorialIdea[]>(`/conversations/${id}/editorial/ideas`), ({ db }) => placeholderIdeas(db.conversations.find((c) => c.id === id)!)),
+    confirmIdeas: (id: string, ideas: EditorialIdea[]) => call(post<Content[]>(`/conversations/${id}/editorial/confirm`, { ideas }), (ctx) => confirmEditorialIdeas(ctx, id, ideas)),
     /** Renvoie la discussion existante avec cet agent sur ce projet, ou en crée une. */
     create: (input: NewConversationInput) => call(post<Conversation>('/conversations', input), (ctx) => createConversation(ctx, input)),
     /** Réponse de l'agent simulée côté serveur (ou localement), aucune IA n'est appelée. */
@@ -292,6 +332,22 @@ export const api = {
   agents: {
     create: (input: AgentInput) => call(post<Agent>('/agents', input), (ctx) => createAgent(ctx, input)),
     update: (id: string, patchBody: Partial<AgentInput>) => call(patch<Agent>(`/agents/${id}`, patchBody), (ctx) => updateAgent(ctx, id, patchBody)),
+    memories: {
+      list: (id: string, query = '') =>
+        call(
+          () => request<AgentMemoryEntry[]>('GET', `/agents/${id}/memories${query ? `?q=${encodeURIComponent(query)}` : ''}`),
+          (ctx) => listAgentMemories(ctx, id, query),
+        ),
+      add: (id: string, input: AgentMemoryInput) =>
+        call(post<AgentMemoryEntry>(`/agents/${id}/memories`, input), (ctx) => addAgentMemory(ctx, id, input)),
+      update: (id: string, memoryId: string, patchBody: { text: string }) =>
+        call(patch<AgentMemoryEntry>(`/agents/${id}/memories/${memoryId}`, patchBody), (ctx) => updateAgentMemory(ctx, id, memoryId, patchBody)),
+      remove: (id: string, memoryId: string) =>
+        call(
+          () => request<{ deleted: boolean }>('DELETE', `/agents/${id}/memories/${memoryId}`),
+          (ctx) => deleteAgentMemory(ctx, id, memoryId),
+        ),
+    },
   },
   notifications: {
     markRead: (id: string) => call(post(`/notifications/${id}/read`), (ctx) => markNotificationRead(ctx, id)),
